@@ -121,6 +121,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 2,
+        shadowColor: Colors.black26,
         title: const Text('System Monitoring Dashboard'),
         actions: [
           IconButton(

@@ -5,7 +5,6 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 class IFrameCard extends StatefulWidget {
   final Map<String, String> website;
-  final bool isDialogOpen;
   final VoidCallback? onRemove;
   final VoidCallback? onRefresh;
   final VoidCallback? onFullscreen;
@@ -13,7 +12,6 @@ class IFrameCard extends StatefulWidget {
   const IFrameCard({
     super.key,
     required this.website,
-    required this.isDialogOpen,
     this.onRemove,
     this.onRefresh,
     this.onFullscreen,
@@ -28,9 +26,11 @@ class _IFrameCardState extends State<IFrameCard>
   bool _isHovered = false;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _isMenuHovered = false;
+  bool _isMenuOpen = false; // Thêm biến để track menu state
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
-  final GlobalKey _menuKey = GlobalKey();
+  final GlobalKey _menuButtonKey = GlobalKey();
 
   @override
   void initState() {
@@ -72,97 +72,116 @@ class _IFrameCardState extends State<IFrameCard>
     return Colors.green;
   }
 
-  IconData _getStatusIcon() {
-    if (_hasError) return Icons.error_outline;
-    if (_isLoading) return Icons.sync;
-    return Icons.check_circle_outline;
+
+  void _handleRefresh() {
+    widget.onRefresh?.call();
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+
+    // Simulate refresh process
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  void _handleFullscreen() {
+    widget.onFullscreen?.call();
+    // You can implement fullscreen logic here
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Fullscreen mode for ${widget.website['title']}'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void enterFullScreen() {
+    String viewId = widget.website['viewId'].toString();
+    final element = html.document.getElementById(viewId);
+    if (element != null) {
+      final jsElement = element as dynamic;
+
+      if (jsElement.requestFullscreen != null) {
+        jsElement.requestFullscreen();
+      } else if (jsElement.webkitRequestFullscreen != null) {
+        jsElement.webkitRequestFullscreen();
+      } else if (jsElement.mozRequestFullScreen != null) {
+        jsElement.mozRequestFullScreen();
+      } else if (jsElement.msRequestFullscreen != null) {
+        jsElement.msRequestFullscreen();
+      } else {
+        print('Fullscreen API is not supported.');
+      }
+    } else {
+      print('Element with id $viewId not found.');
+    }
   }
 
 
-  void _showCardMenu(BuildContext context) {
-    final RenderBox renderBox = _menuKey.currentContext!.findRenderObject() as RenderBox;
-    // final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final Offset offset = renderBox.localToGlobal(Offset.zero);
-    final Size size = renderBox.size;
+  void _handleOpenInNewTab() {
+    try {
+      html.window.open(widget.website['url']!, '_blank');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opened in new tab'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to open in new tab'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
-    showMenu(
+  void _handleRemove() {
+    showDialog(
       context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx ,
-        offset.dy + size.height, // Hiển thị ngay bên dưới icon
-        offset.dx + size.width,
-        offset.dy ,
-      ),
-      items: [
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.refresh, size: 20),
-              SizedBox(width: 8),
-              Text('Refresh'),
-            ],
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Removal'),
+          content: Text(
+            'Are you sure you want to remove "${widget.website['title']}"?',
           ),
-          onTap: () {
-            Future.delayed(Duration.zero, () {
-              widget.onRefresh?.call();
-              setState(() {
-                _isLoading = true;
-                _hasError = false;
-              });
-              Future.delayed(const Duration(milliseconds: 1000), () {
-                if (mounted) {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                }
-              });
-            });
-          },
-        ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.fullscreen, size: 20),
-              SizedBox(width: 8),
-              Text('Fullscreen'),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(Duration.zero, () {
-              widget.onFullscreen?.call();
-            });
-          },
-        ),
-        PopupMenuItem(
-          child: const Row(
-            children: [
-              Icon(Icons.open_in_new, size: 20),
-              SizedBox(width: 8),
-              Text('Open in New Tab'),
-            ],
-          ),
-          onTap: () {
-            Future.delayed(Duration.zero, () {
-              html.window.open(widget.website['url']!, '_blank');
-            });
-          },
-        ),
-        if (widget.onRemove != null)
-          PopupMenuItem(
-            child: const Row(
-              children: [
-                Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Remove', style: TextStyle(color: Colors.red)),
-              ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
-            onTap: () {
-              Future.delayed(Duration.zero, () {
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
                 widget.onRemove?.call();
-              });
-            },
-          ),
-      ],
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Removed ${widget.website['title']}'),
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -176,11 +195,14 @@ class _IFrameCardState extends State<IFrameCard>
         _animationController.forward();
       },
       onExit: (_) {
-        setState(() {
-          _isHovered = false;
-        });
-        _animationController.reverse();
+        if (!_isMenuOpen) {
+          setState(() {
+            _isHovered = false;
+          });
+          _animationController.reverse();
+        }
       },
+
       child: AnimatedBuilder(
         animation: _scaleAnimation,
         builder: (context, child) {
@@ -204,7 +226,7 @@ class _IFrameCardState extends State<IFrameCard>
                   children: [
                     _buildHeader(context),
                     Expanded(child: _buildContent()),
-                    _buildFooter(),
+                   _buildFooter(),
                   ],
                 ),
               ),
@@ -218,7 +240,7 @@ class _IFrameCardState extends State<IFrameCard>
   Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -250,23 +272,11 @@ class _IFrameCardState extends State<IFrameCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.website['title']!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.black87,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
+                SelectableText(
                   _formatUrl(widget.website['url']!),
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                )
+
               ],
             ),
           ),
@@ -275,24 +285,136 @@ class _IFrameCardState extends State<IFrameCard>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Status icon
-              Icon(_getStatusIcon(), size: 16, color: _getStatusColor()),
-              const SizedBox(width: 8),
+              // More options button - Fixed version
+              PopupMenuButton<String>(
+                key: _menuButtonKey,
+                padding: EdgeInsets.zero,
+                tooltip: 'More options',
+                onOpened: () {
+                  setState(() {
+                    _isMenuOpen = true;
+                    _isHovered = true;
+                    _isMenuHovered = true;
+                  });
 
-              // More options button
-              InkWell(
-                key: _menuKey,
-                onTap: () => _showCardMenu(context),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.more_vert,
-                    size: 16,
-                    color: Colors.grey.shade600,
+                },
+
+                onCanceled: () {
+                  setState(() {
+                    _isMenuOpen = false;
+                    _isHovered = false;
+                    _isMenuHovered = false;
+                    _animationController.reverse();
+                  });
+                },
+                offset: const Offset(0, 45),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 12,
+                shadowColor: Colors.black26,
+                constraints: const BoxConstraints(minWidth: 180, maxWidth: 200),
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    height: 48,
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, size: 20, color: Colors.blue.shade600),
+                        const SizedBox(width: 12),
+                        const Text('Refresh', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'fullscreen',
+                    height: 48,
+                    child: Row(
+                      children: [
+                        Icon(Icons.fullscreen, size: 20, color: Colors.green.shade600),
+                        const SizedBox(width: 12),
+                        const Text('Fullscreen', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'newtab',
+                    height: 48,
+                    child: Row(
+                      children: [
+                        Icon(Icons.open_in_new, size: 20, color: Colors.orange.shade600),
+                        const SizedBox(width: 12),
+                        const Text('Open in New Tab', style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  if (widget.onRemove != null) ...[
+                    const PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'remove',
+                      height: 48,
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline, size: 20, color: Colors.red.shade600),
+                          const SizedBox(width: 12),
+                          const Text('Remove', style: TextStyle(color: Colors.red, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+                onSelected: (String value) {
+                  setState(() {
+                    _isMenuOpen = false;
+                    _isHovered = false;
+                    _isMenuHovered = false;
+                    _animationController.reverse();
+                  });
+                  switch (value) {
+                    case 'refresh':
+                      _handleRefresh();
+                      break;
+                    case 'fullscreen':
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        enterFullScreen();
+                      });
+                     _handleFullscreen();
+                      break;
+                    case 'newtab':
+                      _handleOpenInNewTab();
+                      break;
+                    case 'remove':
+                      _handleRemove();
+                      break;
+                  }
+                },
+                child: MouseRegion(
+                  onEnter: (_) => setState(() => _isMenuHovered = true),
+                  onExit: (_) {
+                    if (!_isMenuOpen) {
+                      setState(() => _isMenuHovered = false);
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _isMenuHovered
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                      color: _isMenuHovered
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey.shade600,
+                    ),
                   ),
                 ),
-              ),
+              )
+
             ],
           ),
         ],
@@ -307,54 +429,66 @@ class _IFrameCardState extends State<IFrameCard>
       decoration: BoxDecoration(color: Colors.grey.shade50),
       child: Stack(
         children: [
-          // Iframe content
+          // Ẩn iframe khi menu mở để chắn hoàn toàn
           Positioned.fill(
-            child: IgnorePointer(
-              ignoring: widget.isDialogOpen,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 300),
-                opacity: widget.isDialogOpen ? 0.3 : 1.0,
-                child: _hasError
-                    ? _buildErrorState()
-                    : PointerInterceptor(
-                        child: HtmlElementView(
-                          viewType: widget.website['viewId']!,
-                        ),
-                      ),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: _isMenuOpen ? 0 : 1.0,
+              child: _hasError
+                  ? _buildErrorState()
+                  : PointerInterceptor(
+                child: HtmlElementView(
+                  viewType: widget.website['viewId']!,
+                ),
               ),
             ),
           ),
 
-          // Loading overlay
-          if (_isLoading)
+          // Overlay mờ + chặn tương tác khi menu mở
+          if (_isMenuOpen)
             Positioned.fill(
-              child: Container(
-                color: Colors.white.withOpacity(0.9),
-                child: const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(strokeWidth: 2),
-                      SizedBox(height: 12),
-                      Text(
-                        'Loading...',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isMenuOpen = false;
+                  });
+                },
+               // behavior: HitTestBehavior.opaque, // Đảm bảo nhận pointer dù trong suốt
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
                 ),
               ),
             ),
 
-          // Hover overlay
-          if (_isHovered && !widget.isDialogOpen)
+          // Loading overlay như trước
+          if (_isLoading)
             Positioned.fill(
               child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.1)],
+                color: Colors.white.withOpacity(0.95),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading content...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -364,6 +498,8 @@ class _IFrameCardState extends State<IFrameCard>
     );
   }
 
+
+
   Widget _buildErrorState() {
     return Center(
       child: Column(
@@ -372,38 +508,31 @@ class _IFrameCardState extends State<IFrameCard>
           Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
           const SizedBox(height: 16),
           Text(
-            'Failed to load',
+            'Failed to load content',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: Colors.red.shade600,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Check your connection',
+            'Please check your connection and try again',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-                _hasError = false;
-              });
-              Future.delayed(const Duration(milliseconds: 1000), () {
-                if (mounted) {
-                  setState(() {
-                    _isLoading = false;
-                  });
-                }
-              });
-            },
-            icon: const Icon(Icons.refresh, size: 16),
+            onPressed: _handleRefresh,
+            icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Retry'),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              elevation: 2,
             ),
           ),
         ],
@@ -414,29 +543,56 @@ class _IFrameCardState extends State<IFrameCard>
   Widget _buildFooter() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
         border: Border(top: BorderSide(color: Colors.grey.shade200, width: 1)),
       ),
       child: Row(
         children: [
-          Text(
-            _isLoading
-                ? 'Loading...'
-                : _hasError
-                ? 'Connection failed'
-                : 'Connected',
-            style: TextStyle(
-              fontSize: 10,
-              color: _getStatusColor(),
-              fontWeight: FontWeight.w500,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getStatusColor().withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isLoading
+                      ? 'Loading...'
+                      : _hasError
+                      ? 'Error'
+                      : 'Online',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: _getStatusColor(),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
           const Spacer(),
+          Icon(Icons.schedule, size: 12, color: Colors.grey.shade400),
+          const SizedBox(width: 4),
           Text(
-            'Last updated: ${DateTime.now().toString().substring(11, 16)}',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+            DateTime.now().toString().substring(11, 16),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

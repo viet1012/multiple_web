@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:combo/IFrame_card.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'iframe_service.dart';
-import 'iframe_card.dart';
+
 
 void main() {
   runApp(const MyApp());
@@ -40,10 +40,11 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   final List<Map<String, String>> websites = [
-    {'title': 'Server: 192.168.122.15:5001', 'url': 'http://192.168.122.15:5001/', 'viewId': 'iframe-local'},
+    {'title': 'Server: 192.168.122.15:5001', 'url': 'http://192.168.122.15:5001', 'viewId': 'iframe-local'},
+    {'title': 'Server: 192.168.122.15:5001', 'url': 'https://flutter.dev/', 'viewId': 'iframe-1'},
+
   ];
 
-  bool _isDialogOpen = false;
 
   @override
   void initState() {
@@ -89,7 +90,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(4.0),
         child: GridView.builder(
           itemCount: websites.length,
           shrinkWrap: true,
@@ -101,8 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           itemBuilder: (context, index) {
             return IFrameCard(
-              website: websites[index],
-              isDialogOpen: _isDialogOpen,
+              website: websites[index]
             );
           },
         ),

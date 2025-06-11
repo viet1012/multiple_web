@@ -10,13 +10,16 @@ class IFrameService {
     }
 
     final IFrameElement iframe = IFrameElement()
+      ..id = viewId // ✅ Thêm dòng này
       ..src = srcUrl
       ..style.border = 'none'
       ..style.width = '100%'
       ..style.height = '100%'
       ..allowFullscreen = true
       ..setAttribute('scrolling', 'yes')
-      ..setAttribute('frameborder', '0');
+      ..setAttribute('frameborder', '0')
+      ..setAttribute('allowfullscreen', '')
+      ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation');
 
     ui_web.platformViewRegistry.registerViewFactory(
       viewId,

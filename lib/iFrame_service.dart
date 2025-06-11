@@ -1,9 +1,14 @@
-// iframe_service.dart
 import 'dart:html';
 import 'dart:ui_web' as ui_web;
 
 class IFrameService {
+  static final Set<String> _registeredViewIds = {};
+
   static void registerIFrameViewFactory(String viewId, String srcUrl) {
+    if (_registeredViewIds.contains(viewId)) {
+      return; // tránh đăng ký trùng
+    }
+
     final IFrameElement iframe = IFrameElement()
       ..src = srcUrl
       ..style.border = 'none'
@@ -17,5 +22,7 @@ class IFrameService {
       viewId,
           (int viewId) => iframe,
     );
+
+    _registeredViewIds.add(viewId); // đánh dấu là đã đăng ký
   }
 }

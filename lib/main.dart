@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'iframe_service.dart';
 import 'iframe_card.dart';
 
@@ -8,12 +12,20 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Multiple Web ',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      title: 'System Monitoring Dashboard',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: const Color(0xFFF4F6F8),
+        appBarTheme: const AppBarTheme(
+          elevation: 3,
+          centerTitle: true,
+        ),
+      ),
       home: const MyHomePage(),
     );
   }
@@ -26,9 +38,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
   final List<Map<String, String>> websites = [
     {'title': 'Server: 192.168.122.15:5001', 'url': 'http://192.168.122.15:5001/', 'viewId': 'iframe-local'},
-
   ];
 
   bool _isDialogOpen = false;
@@ -36,124 +48,63 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    _loadWebsites(); // 👈 Gọi load
+  }
+
+  Future<void> _loadWebsites() async {
+
+    // Đăng ký iframe cho từng website trong list
     for (var website in websites) {
       IFrameService.registerIFrameViewFactory(website['viewId']!, website['url']!);
     }
-  }
 
-  void _addNewWebsite(String title, String url) {
-    final newViewId = 'iframe-${DateTime.now().millisecondsSinceEpoch}';
-    setState(() {
-      websites.add({'title': title, 'url': url, 'viewId': newViewId});
-    });
-    IFrameService.registerIFrameViewFactory(newViewId, url);
-  }
-
-  void _showAddWebsiteDialog() {
-    final titleController = TextEditingController();
-    final urlController = TextEditingController();
-
-    setState(() {
-      _isDialogOpen = true;
-    });
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Thêm trang web mới'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tiêu đề',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'URL',
-                    hintText: 'https://example.com',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isDialogOpen = false;
-                });
-                Navigator.of(context).pop();
-              },
-              child: const Text('Hủy'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (titleController.text.isNotEmpty && urlController.text.isNotEmpty) {
-                  _addNewWebsite(titleController.text, urlController.text);
-                  setState(() {
-                    _isDialogOpen = false;
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Thêm'),
-            ),
-          ],
-        );
-      },
-    ).then((_) {
-      setState(() {
-        _isDialogOpen = false;
-      });
-    });
+    // Gọi setState để update giao diện
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 2,
-        shadowColor: Colors.black26,
-        title: const Text('System Monitoring Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _showAddWebsiteDialog,
-          ),
-        ],
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(0, 0, 8.0, 0),
-
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.5,
-              crossAxisSpacing: 10.0,
-              mainAxisSpacing: 10.0,
+    return Scaffold(extendBodyBehindAppBar: true, // Cho phép nội dung nằm sau AppBar
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: Colors.blue.withOpacity(0.5),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: const Text(
+                  '📡 System Monitoring Dashboard',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
-            itemCount: websites.length,
-            itemBuilder: (context, index) {
-              return IFrameCard(
-                website: websites[index],
-                isDialogOpen: _isDialogOpen,
-              );
-            },
           ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GridView.builder(
+          itemCount: websites.length,
+          shrinkWrap: true,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 1.5,
+          ),
+          itemBuilder: (context, index) {
+            return IFrameCard(
+              website: websites[index],
+              isDialogOpen: _isDialogOpen,
+            );
+          },
         ),
       ),
     );

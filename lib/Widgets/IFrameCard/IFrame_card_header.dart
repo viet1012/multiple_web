@@ -58,11 +58,11 @@ class IFrameCardHeader extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              _formatUrl(website['url'] ?? ''),
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            child: SelectableText(
+                _formatUrl(website['url'] ?? ''),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
             ),
-          ),
           PopupMenuButton<String>(
             tooltip: 'More options',
             onOpened: onMenuOpened,

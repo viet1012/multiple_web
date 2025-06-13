@@ -57,6 +57,26 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
+  // Tính toán aspect ratio để 4 ô vừa 1 màn hình (cách đơn giản)
+  double _calculateChildAspectRatio(BuildContext context) {
+    // Lấy chiều cao có thể sử dụng (trừ AppBar và các padding)
+    final screenHeight = MediaQuery.of(context).size.height;
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final appBarHeight = kToolbarHeight;
+
+    // Chiều cao khả dụng cho grid (trừ padding và spacing)
+    final availableHeight = screenHeight - statusBarHeight - appBarHeight - 48; // 48 cho padding và buffer
+
+    // Chiều cao mỗi item (2 hàng = 4 ô, nên chia 2)
+    final itemHeight = (availableHeight - 16) / 2; // 16 là mainAxisSpacing
+
+    // Chiều rộng mỗi item
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemWidth = (screenWidth - 32 - 16) / 2; // 32 padding, 16 crossAxisSpacing
+
+    return itemWidth / itemHeight;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,11 +128,11 @@ class _MyHomePageState extends State<MyHomePage> {
           SliverPadding(
             padding: const EdgeInsets.all(8.0),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.5,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: _calculateChildAspectRatio(context),
               ),
               delegate: SliverChildBuilderDelegate(
                     (context, index) {

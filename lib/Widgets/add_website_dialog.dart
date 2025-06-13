@@ -46,7 +46,7 @@ void showAddWebsiteBottomSheet({
                   if (value == null || value.trim().isEmpty) {
                     return 'Vui lòng nhập URL.';
                   }
-                  final urlPattern = RegExp(r'^(http|https):\/\/');
+                  final urlPattern = RegExp(r'^(http|https)://');
                   if (!urlPattern.hasMatch(value)) {
                     return 'URL phải bắt đầu bằng http:// hoặc https://';
                   }

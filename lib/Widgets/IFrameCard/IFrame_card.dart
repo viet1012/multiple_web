@@ -62,17 +62,86 @@ class _IFrameCardState extends State<IFrameCard>
     super.dispose();
   }
 
-  String _formatUrl(String url) {
-    if (url.length > 30) {
-      return '${url.substring(0, 27)}...';
-    }
-    return url;
-  }
 
-  Color _getStatusColor() {
-    if (_hasError) return Colors.red;
-    if (_isLoading) return Colors.orange;
-    return Colors.green;
+
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          _isHovered = true;
+        });
+        _animationController.forward();
+      },
+      onExit: (_) {
+        if (!_isMenuOpen) {
+          setState(() {
+            _isHovered = false;
+          });
+          _animationController.reverse();
+        }
+      },
+
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Card(
+              elevation: _isHovered ? 8 : 4,
+              shadowColor: Colors.black26,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: _isHovered
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
+                      : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  children: [
+                    IFrameCardHeader(
+                      website: widget.website,
+                      isHovered: _isHovered,
+                      isMenuHovered: _isMenuHovered,
+                      isMenuOpen: _isMenuOpen,
+                      onMenuSelected: handleMenuSelection,
+                      onMenuOpened: () => setState(() {
+                        _isMenuOpen = true;
+                        _isHovered = true;
+                        _isMenuHovered = true;
+                      }),
+                      onMenuCanceled: () => setState(() {
+                        _isMenuOpen = false;
+                        _isHovered = false;
+                        _isMenuHovered = false;
+                        _animationController.reverse();
+                      }),
+                      onHoverChanged: (hovered) => setState(() {
+                        _isMenuHovered = hovered;
+                      }),
+                    ),
+                    Expanded(
+                      child: IFrameCardContent(
+                        isLoading: _isLoading,
+                        hasError: _hasError,
+                        isMenuOpen: _isMenuOpen,
+                        viewId: widget.website['viewId']!,
+                      ),
+                    ),
+                  ],
+                ),
+
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
 
@@ -188,84 +257,6 @@ class _IFrameCardState extends State<IFrameCard>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) {
-        setState(() {
-          _isHovered = true;
-        });
-        _animationController.forward();
-      },
-      onExit: (_) {
-        if (!_isMenuOpen) {
-          setState(() {
-            _isHovered = false;
-          });
-          _animationController.reverse();
-        }
-      },
-
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Card(
-              elevation: _isHovered ? 8 : 4,
-              shadowColor: Colors.black26,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: _isHovered
-                      ? Theme.of(context).colorScheme.primary.withOpacity(0.3)
-                      : Colors.transparent,
-                  width: 2,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Column(
-                  children: [
-                    IFrameCardHeader(
-                      website: widget.website,
-                      isHovered: _isHovered,
-                      isMenuHovered: _isMenuHovered,
-                      isMenuOpen: _isMenuOpen,
-                      onMenuSelected: handleMenuSelection,
-                      onMenuOpened: () => setState(() {
-                        _isMenuOpen = true;
-                        _isHovered = true;
-                        _isMenuHovered = true;
-                      }),
-                      onMenuCanceled: () => setState(() {
-                        _isMenuOpen = false;
-                        _isHovered = false;
-                        _isMenuHovered = false;
-                        _animationController.reverse();
-                      }),
-                      onHoverChanged: (hovered) => setState(() {
-                        _isMenuHovered = hovered;
-                      }),
-                    ),
-                    Expanded(
-                      child: IFrameCardContent(
-                        isLoading: _isLoading,
-                        hasError: _hasError,
-                        isMenuOpen: _isMenuOpen,
-                        viewId: widget.website['viewId']!,
-                      ),
-                    ),
-                  ],
-                ),
-
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
   void handleMenuSelection(String value) {
     setState(() {
       _isMenuOpen = false;
